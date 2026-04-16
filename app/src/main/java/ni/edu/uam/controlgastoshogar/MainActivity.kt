@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,9 +71,6 @@ fun ExpenseControlScreen() {
     // UI Feedback State
     var message by remember { mutableStateOf("") }
     var isSuccessMessage by remember { mutableStateOf(true) }
-    
-    // Data State
-    var expenses by remember { mutableStateOf(listOf<ExpenseItem>()) }
 
     val categories = listOf(
         "Comida" to Icons.Rounded.Restaurant,
@@ -83,7 +81,20 @@ fun ExpenseControlScreen() {
         "Otros" to Icons.Rounded.Category
     )
 
+    val context = LocalContext.current
+    val expenseStorage = remember(context) { ExpenseStorage(context) }
+    val iconByCategory = remember(categories) { categories.toMap() }
+
+    // Data State loaded from persistent storage.
+    var expenses by remember {
+        mutableStateOf(expenseStorage.loadExpenses(iconByCategory))
+    }
+
     val categoryScrollState = rememberScrollState()
+
+    LaunchedEffect(expenses) {
+        expenseStorage.saveExpenses(expenses)
+    }
 
     Scaffold(
         topBar = {
