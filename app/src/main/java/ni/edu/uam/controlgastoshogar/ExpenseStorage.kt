@@ -20,6 +20,7 @@ class ExpenseStorage(context: Context) {
                     .put("id", expense.id)
                     .put("name", expense.name)
                     .put("amount", expense.amount)
+                    .put("currency", expense.currency)
                     .put("category", expense.category)
             )
         }
@@ -38,6 +39,7 @@ class ExpenseStorage(context: Context) {
                     val id = item.optLong("id", System.currentTimeMillis() + index)
                     val name = item.optString("name", "").trim()
                     val amount = item.optDouble("amount", -1.0)
+                    val currency = item.optString("currency", "C$").trim().ifBlank { "C$" }
                     val category = item.optString("category", "").trim()
 
                     if (name.isBlank() || category.isBlank() || amount <= 0.0) continue
@@ -47,6 +49,7 @@ class ExpenseStorage(context: Context) {
                             id = id,
                             name = name,
                             amount = amount,
+                            currency = currency,
                             category = category,
                             icon = iconByCategory[category] ?: Icons.Rounded.Category
                         )

@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -74,26 +73,10 @@ fun ExpenseControlScreen() {
     // UI Feedback State
     var message by remember { mutableStateOf("") }
     var isSuccessMessage by remember { mutableStateOf(true) }
-<<<<<<< HEAD
-=======
-    
-    // Data State
-    var expenses by remember { mutableStateOf(listOf<ExpenseItem>()) }
+
+    // Budget State
     var monthlyBudget by remember { mutableStateOf(0.0) } // Presupuesto base en C$
-    var showBudgetDialog by remember { mutableStateOf(false) }
     var budgetInput by remember { mutableStateOf("") }
-
-    // Tasas de cambio (simuladas: 1 USD = 36.62 NIO, 1 EUR = 39.50 NIO)
-    val exchangeRates = mapOf("C$" to 1.0, "$" to 36.62, "€" to 39.50)
-
-    fun convertToNio(amount: Double, currency: String): Double {
-        return amount * (exchangeRates[currency] ?: 1.0)
-    }
-
-    val totalInNio = expenses.sumOf { convertToNio(it.amount, it.currency) }
-    val remainingBudget = monthlyBudget - totalInNio
-    val budgetProgress = if (monthlyBudget > 0) (totalInNio / monthlyBudget).coerceIn(0.0, 1.0) else 0.0
->>>>>>> elias
 
     val categories = listOf(
         "Comida" to Icons.Rounded.Restaurant,
@@ -112,6 +95,17 @@ fun ExpenseControlScreen() {
     var expenses by remember {
         mutableStateOf(expenseStorage.loadExpenses(iconByCategory))
     }
+
+    // Tasas de cambio (simuladas: 1 USD = 36.62 NIO, 1 EUR = 39.50 NIO)
+    val exchangeRates = mapOf("C$" to 1.0, "$" to 36.62, "€" to 39.50)
+
+    fun convertToNio(amount: Double, currency: String): Double {
+        return amount * (exchangeRates[currency] ?: 1.0)
+    }
+
+    val totalInNio = expenses.sumOf { convertToNio(it.amount, it.currency) }
+    val remainingBudget = monthlyBudget - totalInNio
+    val budgetProgress = if (monthlyBudget > 0) (totalInNio / monthlyBudget).coerceIn(0.0, 1.0) else 0.0
 
     val categoryScrollState = rememberScrollState()
 
@@ -510,9 +504,6 @@ fun ExpenseControlScreen() {
                     ListItem(
                         modifier = Modifier
                             .animateItem()
-<<<<<<< HEAD
-                            .clip(MaterialTheme.shapes.large),
-=======
                             .clip(MaterialTheme.shapes.large)
                             .clickable {
                                 // Populating for UPDATE
@@ -523,7 +514,6 @@ fun ExpenseControlScreen() {
                                 selectedCategory = expense.category
                                 message = ""
                             },
->>>>>>> elias
                         headlineContent = { Text(expense.name, fontWeight = FontWeight.Bold) },
                         supportingContent = { Text(expense.category) },
                         trailingContent = { 
@@ -540,6 +530,7 @@ fun ExpenseControlScreen() {
                                     editingId = expense.id
                                     expenseName = expense.name
                                     expenseAmount = expense.amount.toString()
+                                    selectedCurrency = expense.currency
                                     selectedCategory = expense.category
                                     message = ""
                                 }) {
