@@ -353,15 +353,7 @@ fun ExpenseControlScreen() {
                     ListItem(
                         modifier = Modifier
                             .animateItem()
-                            .clip(MaterialTheme.shapes.large)
-                            .clickable {
-                                // Populating for UPDATE
-                                editingId = expense.id
-                                expenseName = expense.name
-                                expenseAmount = expense.amount.toString()
-                                selectedCategory = expense.category
-                                message = ""
-                            },
+                            .clip(MaterialTheme.shapes.large),
                         headlineContent = { Text(expense.name, fontWeight = FontWeight.Bold) },
                         supportingContent = { Text(expense.category) },
                         trailingContent = { 
@@ -373,6 +365,20 @@ fun ExpenseControlScreen() {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.width(8.dp))
+                                IconButton(onClick = {
+                                    // EDIT
+                                    editingId = expense.id
+                                    expenseName = expense.name
+                                    expenseAmount = expense.amount.toString()
+                                    selectedCategory = expense.category
+                                    message = ""
+                                }) {
+                                    Icon(
+                                        Icons.Rounded.Edit,
+                                        contentDescription = "Editar",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                                 IconButton(onClick = {
                                     // DELETE
                                     expenses = expenses.filter { it.id != expense.id }
