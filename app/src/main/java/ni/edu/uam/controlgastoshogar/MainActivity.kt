@@ -157,22 +157,35 @@ fun ExpenseControlScreen() {
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
-                                Text(
-                                    "C$ ${formatAmount(monthlyBudget)}",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                OutlinedTextField(
+                                    value = budgetInput,
+                                    onValueChange = { 
+                                        if (it.all { c -> c.isDigit() || c == '.' }) {
+                                            budgetInput = it
+                                            monthlyBudget = it.toDoubleOrNull() ?: 0.0
+                                        }
+                                    },
+                                    placeholder = { Text("0.00", color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f)) },
+                                    prefix = { Text("C$ ", fontWeight = FontWeight.Bold) },
+                                    modifier = Modifier.width(200.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+                                        focusedContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                                    ),
+                                    textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    shape = MaterialTheme.shapes.medium,
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                                 )
                             }
-                            IconButton(
-                                onClick = { showBudgetDialog = true },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                )
-                            ) {
-                                Icon(Icons.Rounded.AccountBalance, contentDescription = "Configurar Presupuesto")
-                            }
+                            Icon(
+                                Icons.Rounded.AccountBalance,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                            )
                         }
 
                         Spacer(Modifier.height(20.dp))
@@ -543,36 +556,6 @@ fun ExpenseControlScreen() {
             
             item { Spacer(Modifier.height(40.dp)) }
         }
-    }
-
-    // Budget Dialog
-    if (showBudgetDialog) {
-        AlertDialog(
-            onDismissRequest = { showBudgetDialog = false },
-            title = { Text("Configurar Presupuesto (C$)") },
-            text = {
-                OutlinedTextField(
-                    value = budgetInput,
-                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) budgetInput = it },
-                    label = { Text("Monto mensual") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    monthlyBudget = budgetInput.toDoubleOrNull() ?: 0.0
-                    showBudgetDialog = false
-                }) {
-                    Text("Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBudgetDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
     }
 }
 
