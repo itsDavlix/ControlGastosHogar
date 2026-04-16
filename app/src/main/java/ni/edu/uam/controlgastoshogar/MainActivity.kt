@@ -34,6 +34,7 @@ data class ExpenseItem(
     val id: Long = System.currentTimeMillis(),
     val name: String,
     val amount: Double,
+    val currency: String,
     val category: String,
     val icon: ImageVector
 )
@@ -64,8 +65,10 @@ fun ExpenseControlScreen() {
     // Form State
     var expenseName by remember { mutableStateOf("") }
     var expenseAmount by remember { mutableStateOf("") }
+    var selectedCurrency by remember { mutableStateOf("C$") }
     var selectedCategory by remember { mutableStateOf("") }
     var editingId by remember { mutableStateOf<Long?>(null) }
+    var currencyMenuExpanded by remember { mutableStateOf(false) }
     
     // UI Feedback State
     var message by remember { mutableStateOf("") }
@@ -73,6 +76,20 @@ fun ExpenseControlScreen() {
     
     // Data State
     var expenses by remember { mutableStateOf(listOf<ExpenseItem>()) }
+    var monthlyBudget by remember { mutableStateOf(0.0) } // Presupuesto base en C$
+    var showBudgetDialog by remember { mutableStateOf(false) }
+    var budgetInput by remember { mutableStateOf("") }
+
+    // Tasas de cambio (simuladas: 1 USD = 36.62 NIO, 1 EUR = 39.50 NIO)
+    val exchangeRates = mapOf("C$" to 1.0, "$" to 36.62, "€" to 39.50)
+
+    fun convertToNio(amount: Double, currency: String): Double {
+        return amount * (exchangeRates[currency] ?: 1.0)
+    }
+
+    val totalInNio = expenses.sumOf { convertToNio(it.amount, it.currency) }
+    val remainingBudget = monthlyBudget - totalInNio
+    val budgetProgress = if (monthlyBudget > 0) (totalInNio / monthlyBudget).coerceIn(0.0, 1.0) else 0.0
 
     val categories = listOf(
         "Comida" to Icons.Rounded.Restaurant,
@@ -121,7 +138,6 @@ fun ExpenseControlScreen() {
             
             // 1. Dashboard Summary
             item {
-                val totalAmount = expenses.sumOf { it.amount }
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.elevatedCardColors(
@@ -129,30 +145,95 @@ fun ExpenseControlScreen() {
                     ),
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
+                    Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    "Presupuesto Mensual",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    "C$ ${formatAmount(monthlyBudget)}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            IconButton(
+                                onClick = { showBudgetDialog = true },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Icon(Icons.Rounded.AccountBalance, contentDescription = "Configurar Presupuesto")
+                            }
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+                        LinearProgressIndicator(
+                            progress = { budgetProgress.toFloat() },
+                            modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
+                            color = when {
+                                budgetProgress > 0.9 -> MaterialTheme.colorScheme.error
+                                budgetProgress > 0.7 -> MaterialTheme.colorScheme.tertiary
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Gastado (Total)", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    "C$ ${formatAmount(totalInNio)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (totalInNio > monthlyBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Disponible", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    "C$ ${formatAmount(remainingBudget)}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (remainingBudget < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Presupuesto por Moneda (Mini chips)
+            if (expenses.isNotEmpty()) {
+                item {
+                    val totals = expenses.groupBy { it.currency }
+                        .mapValues { it.value.sumOf { item -> item.amount } }
+                    
                     Row(
-                        modifier = Modifier.padding(24.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            Text(
-                                "Total Gastado",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
-                            Text(
-                                "C$ ${formatAmount(totalAmount)}",
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                        totals.forEach { (curr, total) ->
+                            SuggestionChip(
+                                onClick = { },
+                                label = { Text("$curr ${formatAmount(total)}") },
+                                icon = { Icon(Icons.Rounded.Payments, null, Modifier.size(16.dp)) }
                             )
                         }
-                        Icon(
-                            Icons.Rounded.AccountBalanceWallet,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
-                        )
                     }
                 }
             }
@@ -186,6 +267,7 @@ fun ExpenseControlScreen() {
                                     editingId = null
                                     expenseName = ""
                                     expenseAmount = ""
+                                    selectedCurrency = "C$"
                                     selectedCategory = ""
                                 }) {
                                     Text("Cancelar")
@@ -211,7 +293,49 @@ fun ExpenseControlScreen() {
                                 }
                             },
                             label = { Text("Monto") },
-                            prefix = { Text("C$ ", fontWeight = FontWeight.Bold) },
+                            leadingIcon = {
+                                val currencyOptions = listOf(
+                                    "C$" to "Córdobas",
+                                    "$" to "Dólares",
+                                    "€" to "Euros"
+                                )
+                                Box {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(MaterialTheme.shapes.small)
+                                            .clickable { currencyMenuExpanded = true }
+                                            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = selectedCurrency,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Icon(
+                                            Icons.Rounded.ArrowDropDown,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = currencyMenuExpanded,
+                                        onDismissRequest = { currencyMenuExpanded = false }
+                                    ) {
+                                        currencyOptions.forEach { (symbol, name) ->
+                                            DropdownMenuItem(
+                                                text = { Text("$symbol ($name)") },
+                                                onClick = {
+                                                    selectedCurrency = symbol
+                                                    currencyMenuExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -268,6 +392,7 @@ fun ExpenseControlScreen() {
                                             expenses = expenses + ExpenseItem(
                                                 name = trimmedName,
                                                 amount = parsedAmount,
+                                                currency = selectedCurrency,
                                                 category = selectedCategory,
                                                 icon = categoryIcon
                                             )
@@ -278,6 +403,7 @@ fun ExpenseControlScreen() {
                                                 if (it.id == editingId) it.copy(
                                                     name = trimmedName,
                                                     amount = parsedAmount,
+                                                    currency = selectedCurrency,
                                                     category = selectedCategory,
                                                     icon = categoryIcon
                                                 ) else it
@@ -288,6 +414,7 @@ fun ExpenseControlScreen() {
                                         isSuccessMessage = true
                                         expenseName = ""
                                         expenseAmount = ""
+                                        selectedCurrency = "C$"
                                         selectedCategory = ""
                                     }
                                 }
@@ -359,6 +486,7 @@ fun ExpenseControlScreen() {
                                 editingId = expense.id
                                 expenseName = expense.name
                                 expenseAmount = expense.amount.toString()
+                                selectedCurrency = expense.currency
                                 selectedCategory = expense.category
                                 message = ""
                             },
@@ -367,7 +495,7 @@ fun ExpenseControlScreen() {
                         trailingContent = { 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "C$ ${formatAmount(expense.amount)}",
+                                    "${expense.currency} ${formatAmount(expense.amount)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -380,6 +508,7 @@ fun ExpenseControlScreen() {
                                         editingId = null
                                         expenseName = ""
                                         expenseAmount = ""
+                                        selectedCurrency = "C$"
                                         selectedCategory = ""
                                     }
                                 }) {
@@ -414,6 +543,36 @@ fun ExpenseControlScreen() {
             
             item { Spacer(Modifier.height(40.dp)) }
         }
+    }
+
+    // Budget Dialog
+    if (showBudgetDialog) {
+        AlertDialog(
+            onDismissRequest = { showBudgetDialog = false },
+            title = { Text("Configurar Presupuesto (C$)") },
+            text = {
+                OutlinedTextField(
+                    value = budgetInput,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) budgetInput = it },
+                    label = { Text("Monto mensual") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    monthlyBudget = budgetInput.toDoubleOrNull() ?: 0.0
+                    showBudgetDialog = false
+                }) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBudgetDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
